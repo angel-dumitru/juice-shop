@@ -1,0 +1,57 @@
+name: DevSecOps Security Pipeline
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+jobs:
+  security-scans:
+    name: Execute DevSecOps Scans
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js Environment
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      # 1. Secrets Scanning
+      - name: Secrets Scan (Gitleaks)
+        uses: gitleaks/gitleaks-action@v2
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # 2. Static Application Security Testing (SAST)
+      - name: SAST Scan (Semgrep)
+        run: |
+          docker run --rm -v "$(pwd):/src" returntocorp/semgrep semgrep scan --config=auto --json -o sast_results.json
+        continue-on-error: true
+
+      # 3. Software Composition Analysis (SCA)
+      - name: SCA Scan (Trivy)
+        run: |
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy fs . --format json -o sca_results.json
+        continue-on-error: true
+
+      # 4. Software Bill of Materials (SBOM)
+      - name: Generate SBOM (CycloneDX)
+        run: |
+          npm install -g @cyclonedx/cyclonedx-npm
+          cyclonedx-npm --output-file sbom.json
+        continue-on-error: true
+
+      # 5. Save Artifacts for Submission Screenshots
+      - name: Upload Security Reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: devsecops-scan-reports
+          path: |
+            sast_results.json
+            sca_results.json
+            sbom.json
