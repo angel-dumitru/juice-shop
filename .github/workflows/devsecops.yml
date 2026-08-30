@@ -57,12 +57,14 @@ jobs:
         with:
           target: 'http://localhost:3000'
           artifact_name: 'zap_artifacts'
-          cmd_options: '-J dast_results.json -r dast_report.html'
+          cmd_options: '-J report_json.json -r dast_report.html'
           fail_action: false
 
-      - name: Adjust File Permissions
+      - name: Adjust File Permissions and Resolve ZAP Report
         if: always()
-        run: sudo chmod -R 777 .
+        run: |
+          sudo chmod -R 777 .
+          if [ -f "report_json.json" ]; then cp report_json.json dast_results.json; fi
 
       # 6. Push All 5 Scan Reports Directly to DefectDojo using Secrets
       - name: Push Reports Directly to DefectDojo
