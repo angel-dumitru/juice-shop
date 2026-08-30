@@ -1,246 +1,201 @@
-# ![Juice Shop Logo](https://raw.githubusercontent.com/juice-shop/juice-shop/master/frontend/src/assets/public/images/JuiceShop_Logo_100px.png) OWASP Juice Shop
+# DevSecOps Pipeline for OWASP Juice Shop
 
-[![OWASP Flagship](https://img.shields.io/badge/owasp-flagship%20project-48A646.svg)](https://owasp.org/projects/#sec-flagships)
-[![GitHub release](https://img.shields.io/github/release/juice-shop/juice-shop.svg)](https://github.com/juice-shop/juice-shop/releases/latest)
-[![Twitter Follow](https://img.shields.io/twitter/follow/owasp_juiceshop.svg?style=social&label=Follow)](https://twitter.com/owasp_juiceshop)
-[![Subreddit subscribers](https://img.shields.io/reddit/subreddit-subscribers/owasp_juiceshop?style=social)](https://reddit.com/r/owasp_juiceshop)
+## 📌 Project Overview
+This project implements an automated, end-to-end DevSecOps CI/CD pipeline for **OWASP Juice Shop**. The pipeline integrates multiple open-source security tools directly into GitHub Actions and automatically forwards all aggregated scan results to a self-hosted **DefectDojo** instance via a secure reverse tunnel.
 
-[![CI/CD Pipeline](https://github.com/juice-shop/juice-shop/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/juice-shop/juice-shop/actions/workflows/ci.yml)
-[![Release Pipeline](https://github.com/juice-shop/juice-shop/actions/workflows/release.yml/badge.svg)](https://github.com/juice-shop/juice-shop/actions/workflows/release.yml)
-[![Coverage Status](https://coveralls.io/repos/github/juice-shop/juice-shop/badge.svg?branch=develop)](https://coveralls.io/github/juice-shop/juice-shop?branch=develop)
-[![Cypress tests](https://img.shields.io/endpoint?url=https://dashboard.cypress.io/badge/simple/3hrkhu/develop&style=flat&logo=cypress)](https://dashboard.cypress.io/projects/3hrkhu/runs)
-[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/223/badge)](https://www.bestpractices.dev/projects/223)
-![GitHub stars](https://img.shields.io/github/stars/juice-shop/juice-shop.svg?label=GitHub%20%E2%98%85&style=flat)
-[![Static Badge](https://img.shields.io/badge/OWASP-Code_of_Conduct-blue)](CODE_OF_CONDUCT.md)
+---
 
-> [The most trustworthy online shop out there.](https://twitter.com/dschadow/status/706781693504589824)
-> ([@dschadow](https://github.com/dschadow)) —
-> [The best juice shop on the whole internet!](https://twitter.com/shehackspurple/status/907335357775085568)
-> ([@shehackspurple](https://twitter.com/shehackspurple)) —
-> [Actually the most bug-free vulnerable application in existence!](https://youtu.be/TXAztSpYpvE?t=26m35s)
-> ([@vanderaj](https://twitter.com/vanderaj)) —
-> [First you 😂😂then you 😢](https://twitter.com/kramse/status/1073168529405472768)
-> ([@kramse](https://twitter.com/kramse)) —
-> [But this doesn't have anything to do with juice.](https://twitter.com/coderPatros/status/1199268774626488320)
-> ([@coderPatros' wife](https://twitter.com/coderPatros))
+## 🛠️ DevSecOps Pipeline Architecture & Tools
 
-OWASP Juice Shop is probably the most modern and sophisticated insecure web application! It can be used in security
-trainings, awareness demos, CTFs and as a guinea pig for security tools! Juice Shop encompasses vulnerabilities from the
-entire
-[OWASP Top Ten](https://owasp.org/www-project-top-ten) along with many other security flaws found in real-world
-applications!
+| Security Stage | Tool Used | Output Format | Description |
+| :--- | :--- | :--- | :--- |
+| **Secrets Scanning** | Gitleaks | JSON | Scans the repository history for hardcoded secrets, tokens, and keys. |
+| **SAST** | Semgrep | JSON | Performs Static Application Security Testing against source code for vulnerabilities. |
+| **SCA** | Trivy | JSON | Software Composition Analysis scanning application dependencies for known CVEs. |
+| **SBOM** | CycloneDX | JSON | Generates a Software Bill of Materials tracking package inventory. |
+| **DAST** | OWASP ZAP | XML / JSON | Dynamic Application Security Testing against a live running Juice Shop Docker container. |
+| **Reporting** | DefectDojo | API Aggregation | Centralized dashboard ingesting scan outputs from all 5 tools. |
 
-![Juice Shop Screenshot Slideshow](screenshots/slideshow.gif)
+---
 
-For a detailed introduction, full list of features and architecture overview please visit the official project page:
-<https://owasp-juice.shop>
+## 🔌 Local DefectDojo Setup & External Exposure
 
-## Table of contents
+DefectDojo is hosted locally on port `8080`. To enable GitHub Actions (running on cloud runners) to communicate securely with the local DefectDojo instance, a secure SSH reverse tunnel was established using **Serveo**.
 
-- [Setup](#setup)
-    - [From Sources](#from-sources)
-    - [Packaged Distributions](#packaged-distributions)
-    - [Docker Container](#docker-container)
-    - [Vagrant](#vagrant)
-- [Demo](#demo)
-- [Documentation](#documentation)
-    - [Node.js version compatibility](#nodejs-version-compatibility)
-    - [Troubleshooting](#troubleshooting)
-    - [Official companion guide](#official-companion-guide)
-- [Contributing](#contributing)
-- [References](#references)
-- [Merchandise](#merchandise)
-- [Donations](#donations)
-- [Contributors](#contributors)
-- [Licensing](#licensing)
+<img width="1856" height="390" alt="image" src="https://github.com/user-attachments/assets/44ba2e1c-35d9-45fa-8b78-3fce3eebc695" />
 
-## Setup
+###  **Reverse SSH Tunnel Command**
 
-> You can find some less common installation variations as well as instructions to run Juice Shop on a variety of cloud computing providers in
-> [the _Running OWASP Juice Shop_ documentation](https://pwning.owasp-juice.shop/companion-guide/latest/part1/running.html).
+ssh -i ~/.ssh/id_ed25519 -R angel-defectdojo:80:localhost:8080 serveo.net
+<img width="1573" height="313" alt="image" src="https://github.com/user-attachments/assets/238b3a82-8320-43b9-9411-c496c35c3d03" />
 
-> Some challenges require an AI/LLM provider to work properly. Check the
-> [_Setting up external dependencies_ documentation](https://pwning.owasp-juice.shop/companion-guide/snapshot/part1/running.html#_setting_up_external_dependencies)
-> for instructions on configuring local or cloud-based AI providers.
 
-### From Sources
+-** Local Target:** http://localhost:8080 (Local DefectDojo instance)
+- **Exposed Endpoint**: https://angel-defectdojo.serveousercontent.com**
 
-![GitHub repo size](https://img.shields.io/github/repo-size/juice-shop/juice-shop.svg)
 
-1. Install [node.js](#nodejs-version-compatibility)
-2. Run `git clone https://github.com/juice-shop/juice-shop.git --depth 1` (or
-   clone [your own fork](https://github.com/juice-shop/juice-shop/fork)
-   of the repository)
-3. Go into the cloned folder with `cd juice-shop`
-4. Run `npm install` (only has to be done before first start or when you change the source code)
-5. Run `npm start`
-6. Browse to <http://localhost:3000>
+## **GitHub Repository Secrets**
+<img width="1549" height="820" alt="image" src="https://github.com/user-attachments/assets/ff9e59c5-13ac-458d-a3a7-e37386b4e1da" />
 
-### Packaged Distributions
+The external URL and credentials were mapped securely using GitHub Secrets:
 
-[![GitHub release](https://img.shields.io/github/downloads/juice-shop/juice-shop/total.svg)](https://github.com/juice-shop/juice-shop/releases/latest)
-[![SourceForge](https://img.shields.io/sourceforge/dm/juice-shop?label=sourceforge%20downloads)](https://sourceforge.net/projects/juice-shop/)
-[![SourceForge](https://img.shields.io/sourceforge/dt/juice-shop?label=sourceforge%20downloads)](https://sourceforge.net/projects/juice-shop/)
+- DEFECTDOJO_URL: https://angel-defectdojo.serveousercontent.com
 
-1. Install a 64bit [node.js](#nodejs-version-compatibility) on your Windows, MacOS or Linux machine
-2. Download `juice-shop-<version>_<node-version>_<os>_x64.zip` (or
-   `.tgz`) attached to
-   [latest release](https://github.com/juice-shop/juice-shop/releases/latest)
-3. Unpack and `cd` into the unpacked folder
-4. Run `npm start`
-5. Browse to <http://localhost:3000>
+- DEFECTDOJO_API_KEY: API token generated from DefectDojo
 
-> Each packaged distribution includes some binaries for `sqlite3` and
-> `libxmljs2` bound to the OS and node.js version which `npm install` was
-> executed on.
+- DEFECTDOJO_ENGAGEMENT_ID: Target engagement ID (1)
 
-### Docker Container
 
-[![Docker Pulls](https://img.shields.io/docker/pulls/bkimminich/juice-shop.svg)](https://hub.docker.com/r/bkimminich/juice-shop)
-![Docker Stars](https://img.shields.io/docker/stars/bkimminich/juice-shop.svg)
-[![](https://images.microbadger.com/badges/image/bkimminich/juice-shop.svg)](https://microbadger.com/images/bkimminich/juice-shop
-"Get your own image badge on microbadger.com")
-[![](https://images.microbadger.com/badges/version/bkimminich/juice-shop.svg)](https://microbadger.com/images/bkimminich/juice-shop
-"Get your own version badge on microbadger.com")
 
-1. Install [Docker](https://www.docker.com)
-2. Run `docker pull bkimminich/juice-shop`
-3. Run `docker run --rm -p 127.0.0.1:3000:3000 bkimminich/juice-shop`
-4. Browse to <http://localhost:3000> (on macOS and Windows browse to
-   <http://192.168.99.100:3000> if you are using docker-machine instead of the native docker installation)
+## 📊 **Pipeline Proof & Execution Results**
 
-### Vagrant
+GitHub Actions Successful Build
+- Commit Hash: 9ecd839 ("Fix ZAP permissions and update workflow pipeline")
+- Workflow Run: #14 (Status: Passed / Green Checkmark)
 
-1. Install [Vagrant](https://www.vagrantup.com/downloads.html) and
-   [Virtualbox](https://www.virtualbox.org/wiki/Downloads)
-2. Run `git clone https://github.com/juice-shop/juice-shop.git` (or
-   clone [your own fork](https://github.com/juice-shop/juice-shop/fork)
-   of the repository)
-3. Run `cd vagrant && vagrant up`
-4. Browse to [192.168.56.110](http://192.168.56.110)
+<img width="1666" height="867" alt="image" src="https://github.com/user-attachments/assets/8fdb7445-aa7a-49d6-9cf8-2ead7d197780" />
 
-## Demo
 
-Feel free to have a look at the latest version of OWASP Juice Shop:
-<http://demo.owasp-juice.shop>
+## **DefectDojo Integrated Vulnerability Summary**
 
-> This is a deployment-test and sneak-peek instance only! You are __not
-> supposed__ to use this instance for your own hacking endeavours! No
-> guaranteed uptime! Guaranteed stern looks if you break it!
+- Total Active Findings: 534
+- High: 362 | Medium: 161 | Low: 7 | Info: 4
 
-## Documentation
+Scan Breakdown in DefectDojo Engagement:
+ - Gitleaks Scan: 194 Findings
+ - Semgrep JSON Report: 208 Findings
+ - Trivy Scan: 121 Findings
+ - OWASP ZAP Scan: 11 Findings
+ - CycloneDX SBOM: Ingested (0 vulnerabilities, full package map)
 
-### Node.js version compatibility
+<img width="1872" height="802" alt="image" src="https://github.com/user-attachments/assets/8c7b57ce-3f31-4bed-a59a-e9fa7ad67aef" />
 
-![GitHub package.json dynamic](https://img.shields.io/github/package-json/cpu/juice-shop/juice-shop)
-![GitHub package.json dynamic](https://img.shields.io/github/package-json/os/juice-shop/juice-shop)
 
-OWASP Juice Shop officially supports the following versions of
-[node.js](http://nodejs.org) in line with the official
-[node.js LTS schedule](https://github.com/nodejs/LTS) as close as possible. Docker images and packaged distributions are
-offered accordingly.
+⚙️ GitHub Actions CI/CD Pipeline Workflow
 
-| node.js | Supported              | Tested             | [Packaged Distributions](#packaged-distributions) | [Docker images](#docker-container) from `master` | [Docker images](#docker-container) from `develop` |
-|:--------|:-----------------------|:-------------------|:--------------------------------------------------|:-------------------------------------------------|:--------------------------------------------------|
-| 26.x    | :heavy_check_mark:     | :heavy_check_mark: |                                                   |                                                  |                                                   |
-| 25.x    | ( :heavy_check_mark: ) | :x:                |                                                   |                                                  |                                                   |
-| 24.x    | :heavy_check_mark:     | :heavy_check_mark: | Windows (`x64`), MacOS (`x64`), Linux (`x64`)     | `latest` (`linux/amd64`, `linux/arm64`)          | `snapshot` (`linux/amd64`, `linux/arm64`)         |
-| 23.x    | :x:                    | :x:                |                                                   |                                                  |                                                   |
-| 22.x    | :heavy_check_mark:     | :heavy_check_mark: |                                                   |                                                  |                                                   |
-| <22.x   | :x:                    | :x:                |                                                   |                                                  |                                                   |
+name: DevSecOps Security Pipeline
 
-Juice Shop is automatically tested _only on the latest `.x` minor version_ of each node.js version mentioned above!
-There is no guarantee that older minor node.js releases will always work with Juice Shop!
-Please make sure you stay up to date with your chosen version.
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
 
-### Troubleshooting
+# 1. Add top-level permissions to prevent 403 API errors
+permissions:
+  contents: read
+  issues: write
 
-[![Gitter](http://img.shields.io/badge/gitter-join%20chat-1dce73.svg)](https://gitter.im/bkimminich/juice-shop)
+jobs:
+  security-scans:
+    name: Execute DevSecOps Scans
+    runs-on: ubuntu-latest
 
-If you need help with the application setup please check 
-[our existing _Troubleshooting_](https://pwning.owasp-juice.shop/companion-guide/latest/part4/troubleshooting.html)
-guide. If this does not solve your issue please post your specific problem or question in the
-[Gitter Chat](https://gitter.im/bkimminich/juice-shop) where community members can best try to help you.
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-:stop_sign: **Please avoid opening GitHub issues for support requests or questions!**
+      - name: Setup Node.js Environment
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
 
-### Official companion guide
+      - name: Install Dependencies
+        run: npm install --legacy-peer-deps || true
 
-[![Write Goodreads Review](https://img.shields.io/badge/goodreads-write%20review-49557240.svg)](https://www.goodreads.com/review/edit/49557240)
+      # 1. Secrets Scanning (Gitleaks)
+      - name: Secrets Scan (Gitleaks)
+        run: |
+          docker run --rm -v "$(pwd):/path" zricethezav/gitleaks:latest detect --source="/path" --report-format json --report-path /path/gitleaks_results.json || true
 
-OWASP Juice Shop comes with an official companion guide eBook. It will give you a complete overview of all
-vulnerabilities found in the application including hints how to spot and exploit them. In the appendix you will even
-find complete step-by-step solutions to every challenge. Extensive documentation of
-[custom re-branding](https://pwning.owasp-juice.shop/companion-guide/latest/part4/customization.html),
-[CTF-support](https://pwning.owasp-juice.shop/companion-guide/latest/part4/ctf.html),
-[trainer's guide](https://pwning.owasp-juice.shop/companion-guide/latest/part4/trainers.html)
-and much more is also included.
+      # 2. Static Application Security Testing (SAST)
+      - name: SAST Scan (Semgrep)
+        run: |
+          docker run --rm -v "$(pwd):/src" returntocorp/semgrep semgrep scan --config=auto --json -o /src/sast_results.json || true
 
-[Pwning OWASP Juice Shop](https://leanpub.com/juice-shop) is published under
-[CC BY-NC-ND 4.0](https://creativecommons.org/licenses/by-nc-nd/4.0/)
-and is available **for free** in PDF, Kindle and ePub format on LeanPub. You can also
-[browse the full content online](https://pwning.owasp-juice.shop)!
+      # 3. Software Composition Analysis (SCA)
+      - name: SCA Scan (Trivy)
+        run: |
+          docker run --rm -v "$(pwd):/root/src" aquasec/trivy fs /root/src --format json -o /root/src/sca_results.json || true
 
-[<img alt="Pwning OWASP Juice Shop cover" src="https://raw.githubusercontent.com/juice-shop/pwning-juice-shop/master/docs/modules/ROOT/assets/images/cover.jpg" width="200"/>](https://leanpub.com/juice-shop)
-[<img alt="Pwning OWASP Juice Shop back cover" src="https://raw.githubusercontent.com/juice-shop/pwning-juice-shop/master/docs/modules/ROOT/assets/images/introduction/back.jpg" width="200"/>](https://leanpub.com/juice-shop)
+      # 4. Software Bill of Materials (SBOM)
+      - name: Generate SBOM (CycloneDX)
+        run: |
+          npx @cyclonedx/cyclonedx-npm --output-file sbom.json || true
 
-## Contributing
+      # 5. Dynamic Application Security Testing (DAST)
+      - name: Run Juice Shop Container
+        run: docker run -d --name juice-shop -p 3000:3000 bkimminich/juice-shop
 
-[![GitHub contributors](https://img.shields.io/github/contributors/juice-shop/juice-shop.svg)](https://github.com/juice-shop/juice-shop/graphs/contributors)
-[![JavaScript Style Guide](https://img.shields.io/badge/code%20style-standard-brightgreen.svg)](http://standardjs.com/)
-[![Crowdin](https://d322cqt584bo4o.cloudfront.net/owasp-juice-shop/localized.svg)](https://crowdin.com/project/owasp-juice-shop)
-![GitHub issues by-label](https://img.shields.io/github/issues/juice-shop/juice-shop/help%20wanted.svg)
-![GitHub issues by-label](https://img.shields.io/github/issues/juice-shop/juice-shop/good%20first%20issue.svg)
+      - name: Wait for App to Start
+        run: sleep 20
 
-We are always happy to get new contributors on board! Please check
-[CONTRIBUTING.md](CONTRIBUTING.md) to learn how to
-[contribute to our codebase](CONTRIBUTING.md#code-contributions) or the
-[translation into different languages](CONTRIBUTING.md#i18n-contributions)!
+      # 2. Configure ZAP with token and disable automated issue creation
+      - name: DAST Scan (OWASP ZAP)
+        uses: zaproxy/action-baseline@v0.14.0
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          target: 'http://localhost:3000'
+          artifact_name: 'zap_artifacts'
+          cmd_options: '-J report_json.json -r report_html.html -x report_xml.xml'
+          allow_issue_writing: false
+          fail_action: false
 
-## References
+      - name: Adjust File Permissions and Resolve ZAP Report
+        if: always()
+        run: |
+          sudo chmod -R 777 .
+          if [ -f "report_xml.xml" ]; then cp report_xml.xml dast_results.xml; fi
+          if [ -f "report_json.json" ]; then cp report_json.json dast_results.json; fi
 
-Did you write a blog post, magazine article or do a podcast about or mentioning OWASP Juice Shop? Or maybe you held or
-joined a conference talk or meetup session, a hacking workshop or public training where this project was mentioned?
+      # 6. Push All 5 Scan Reports Directly to DefectDojo using Secrets
+      - name: Push Reports Directly to DefectDojo
+        if: always()
+        env:
+          DEFECTDOJO_URL: ${{ secrets.DEFECTDOJO_URL }}
+          API_KEY: ${{ secrets.DEFECTDOJO_API_KEY }}
+          ENGAGEMENT_ID: ${{ secrets.DEFECTDOJO_ENGAGEMENT_ID }}
+        run: |
+          upload_scan() {
+            FILE=$1
+            TYPE=$2
+            if [ -f "$FILE" ]; then
+              echo "----------------------------------------"
+              echo "Uploading $FILE as $TYPE to DefectDojo..."
+              RESPONSE=$(curl -s -k -w "\nHTTP_CODE:%{http_code}" -X POST "$DEFECTDOJO_URL/api/v2/import-scan/" \
+                -H "Authorization: Token $API_KEY" \
+                -F "scan_type=$TYPE" \
+                -F "engagement=$ENGAGEMENT_ID" \
+                -F "active=true" \
+                -F "verified=false" \
+                -F "minimum_severity=Info" \
+                -F "close_old_findings=false" \
+                -F "file=@$FILE")
+              echo "Response: $RESPONSE"
+            else
+              echo "File $FILE not found, skipping upload."
+            fi
+          }
 
-Add it to our ever-growing list of [REFERENCES.md](REFERENCES.md) by forking and opening a Pull Request!
+          upload_scan "gitleaks_results.json" "Gitleaks Scan"
+          upload_scan "sast_results.json" "Semgrep JSON Report"
+          upload_scan "sca_results.json" "Trivy Scan"
+          upload_scan "sbom.json" "CycloneDX Scan"
+          upload_scan "dast_results.xml" "ZAP Scan"
 
-## Merchandise
-
-* On [Spreadshirt.com](http://shop.spreadshirt.com/juiceshop) and
-  [Spreadshirt.de](http://shop.spreadshirt.de/juiceshop) you can get some swag (Shirts, Hoodies, Mugs) with the official
-  OWASP Juice Shop logo
-* On
-  [StickerYou.com](https://www.stickeryou.com/products/owasp-juice-shop/794)
-  you can get variants of the OWASP Juice Shop logo as single stickers to decorate your laptop with. They can also print
-  magnets, iron-ons, sticker sheets and temporary tattoos.
-
-## Donations
-
-[![](https://img.shields.io/badge/support-owasp%20juice%20shop-blue)](https://owasp.org/donate/?reponame=www-project-juice-shop&title=OWASP+Juice+Shop)
-
-The OWASP Foundation gratefully accepts donations via Stripe. Projects such as Juice Shop can then request reimbursement
-for expenses from the Foundation. If you'd like to express your support of the Juice Shop project, please make sure to
-tick the "Publicly list me as a supporter of OWASP Juice Shop" checkbox on the donation form. You can find our more
-about donations and how they are used here:
-
-<https://pwning.owasp-juice.shop/companion-guide/latest/part3/donations.html>
-
-## Contributors
-
-The OWASP Juice Shop Project Leaders are:
-
-- [Björn Kimminich](https://github.com/bkimminich) aka `bkimminich` [![Keybase PGP](https://img.shields.io/keybase/pgp/bkimminich)](https://keybase.io/bkimminich)
-- [Jannik Hollenbach](https://github.com/J12934) aka `J12934`
-
-For a list of all contributors to the OWASP Juice Shop please visit our
-[HALL_OF_FAME.md](HALL_OF_FAME.md).
-
-## Licensing
-
-[![license](https://img.shields.io/github/license/juice-shop/juice-shop.svg)](LICENSE)
-
-This program is free software: you can redistribute it and/or modify it under the terms of the [MIT license](LICENSE).
-OWASP Juice Shop and any contributions are Copyright © by Bjoern Kimminich & the OWASP Juice Shop contributors
-2014-2026.
-
-![Juice Shop Logo](https://raw.githubusercontent.com/juice-shop/juice-shop/master/frontend/src/assets/public/images/JuiceShop_Logo_400px.png)
+      # 7. Upload Artifacts to GitHub Actions
+      - name: Upload Security Reports Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: devsecops-scan-reports
+          path: |
+            gitleaks_results.json
+            sast_results.json
+            sca_results.json
+            sbom.json
+            dast_results.xml
+            dast_results.json
+          if-no-files-found: warn
