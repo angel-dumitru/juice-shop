@@ -30,7 +30,7 @@ ssh -i ~/.ssh/id_ed25519 -R angel-defectdojo:80:localhost:8080 serveo.net
 <img width="1573" height="313" alt="image" src="https://github.com/user-attachments/assets/238b3a82-8320-43b9-9411-c496c35c3d03" />
 
 
--** Local Target:** http://localhost:8080 (Local DefectDojo instance)
+- ** Local Target:** http://localhost:8080 (Local DefectDojo instance)
 - **Exposed Endpoint**: https://angel-defectdojo.serveousercontent.com**
 
 
