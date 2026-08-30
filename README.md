@@ -48,6 +48,7 @@ The external URL and credentials were mapped securely using GitHub Secrets:
 
 
 ## 📊 **Pipeline Proof & Execution Results**
+<img width="695" height="267" alt="image" src="https://github.com/user-attachments/assets/e1659151-76b8-4a5a-be59-99abec519b6a" />
 
 GitHub Actions Successful Build
 - Commit Hash: 9ecd839 ("Fix ZAP permissions and update workflow pipeline")
