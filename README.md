@@ -72,8 +72,7 @@ Scan Breakdown in DefectDojo Engagement:
 
 
 
-⚙️ GitHub Actions CI/CD Pipeline Workflow
-
+**⚙️ GitHub Actions CI/CD Pipeline Workflow**
 
 
 name: DevSecOps Security Pipeline
@@ -84,7 +83,7 @@ on:
   pull_request:
     branches: [ "main", "master" ]
 
-# Grant explicit permissions for token operations
+# 1. Add top-level permissions to prevent 403 API errors
 permissions:
   contents: read
   issues: write
@@ -135,6 +134,7 @@ jobs:
       - name: Wait for App to Start
         run: sleep 20
 
+      # 2. Configure ZAP with token and disable automated issue creation
       - name: DAST Scan (OWASP ZAP)
         uses: zaproxy/action-baseline@v0.14.0
         with:
@@ -165,8 +165,8 @@ jobs:
             TYPE=$2
             if [ -f "$FILE" ]; then
               echo "----------------------------------------"
-              echo "Uploading $FILE as$TYPE to DefectDojo..."
-              RESPONSE=$(curl -s -k -w "\nHTTP_CODE:\%{http_code}" -X POST "$DEFECTDOJO_URL/api/v2/import-scan/" \
+              echo "Uploading $FILE as $TYPE to DefectDojo..."
+              RESPONSE=$(curl -s -k -w "\nHTTP_CODE:%{http_code}" -X POST "$DEFECTDOJO_URL/api/v2/import-scan/" \
                 -H "Authorization: Token $API_KEY" \
                 -F "scan_type=$TYPE" \
                 -F "engagement=$ENGAGEMENT_ID" \
@@ -201,4 +201,3 @@ jobs:
             dast_results.xml
             dast_results.json
           if-no-files-found: warn
-
