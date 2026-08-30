@@ -14,43 +14,38 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js Environment
         uses: actions/setup-node@v4
         with:
           node-version: '18'
 
-      # 1. Secrets Scanning (Fixed to export JSON output file)
+      # 1. Secrets Scanning (Gitleaks CLI via Docker for guaranteed JSON output)
       - name: Secrets Scan (Gitleaks)
-        uses: gitleaks/gitleaks-action@v2
-        continue-on-error: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: false
-          GITLEAKS_OUTPUT: gitleaks_results.json
+        run: |
+          docker run --rm -v "$(pwd):/path" zricethezav/gitleaks:latest detect --source="/path" --report-format json --report-path /path/gitleaks_results.json || true
 
       # 2. Static Application Security Testing (SAST)
       - name: SAST Scan (Semgrep)
         run: |
-          docker run --rm -v "$(pwd):/src" returntocorp/semgrep semgrep scan --config=auto --json -o sast_results.json
-        continue-on-error: true
+          docker run --rm -v "$(pwd):/src" returntocorp/semgrep semgrep scan --config=auto --json -o /src/sast_results.json || true
 
       # 3. Software Composition Analysis (SCA)
       - name: SCA Scan (Trivy)
         run: |
-          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy fs . --format json -o sca_results.json
-        continue-on-error: true
+          docker run --rm -v "$(pwd):/root/src" aquasec/trivy fs /root/src --format json -o /root/src/sca_results.json || true
 
       # 4. Software Bill of Materials (SBOM)
       - name: Generate SBOM (CycloneDX)
         run: |
           npm install -g @cyclonedx/cyclonedx-npm
-          cyclonedx-npm --output-file sbom.json
-        continue-on-error: true
+          cyclonedx-npm --output-file sbom.json || true
 
       # 5. Dynamic Application Security Testing (DAST)
       - name: Run Juice Shop Container
-        run: docker run -d -p 3000:3000 bkimminich/juice-shop
+        run: docker run -d --name juice-shop -p 3000:3000 bkimminich/juice-shop
 
       - name: Wait for App to Start
         run: sleep 20
@@ -59,14 +54,19 @@ jobs:
         run: |
           docker run --rm --network="host" -v "$(pwd):/zap/wrk/:rw" zaproxy/zap-stable zap-baseline.py -t http://localhost:3000 -J dast_results.json -r dast_report.html || true
 
-      # 6. Save All 5 Artifacts for DefectDojo & Submission
+      # Verify generated files in runner logs
+      - name: Verify Generated Reports
+        run: ls -la *.json
+
+      # 6. Save Artifacts for Submission
       - name: Upload Security Reports
         uses: actions/upload-artifact@v4
         with:
           name: devsecops-scan-reports
           path: |
+            gitleaks_results.json
             sast_results.json
             sca_results.json
             sbom.json
             dast_results.json
-            gitleaks_results.json
+          if-no-files-found: warn
