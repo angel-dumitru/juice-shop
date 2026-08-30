@@ -6,11 +6,6 @@ on:
   pull_request:
     branches: [ "main", "master" ]
 
-# Grant explicit permissions for token operations
-permissions:
-  contents: read
-  issues: write
-
 jobs:
   security-scans:
     name: Execute DevSecOps Scans
@@ -60,20 +55,19 @@ jobs:
       - name: DAST Scan (OWASP ZAP)
         uses: zaproxy/action-baseline@v0.14.0
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
           target: 'http://localhost:3000'
           artifact_name: 'zap_artifacts'
-          cmd_options: '-J report_json.json -r dast_report.html'
-          allow_issue_writing: false
+          cmd_options: '-J report_json.json -r report_html.html -x report_xml.xml'
           fail_action: false
 
-      - name: Fix Permissions and Format ZAP Output
+      - name: Adjust File Permissions and Resolve ZAP Report
         if: always()
         run: |
           sudo chmod -R 777 .
+          if [ -f "report_xml.xml" ]; then cp report_xml.xml dast_results.xml; fi
           if [ -f "report_json.json" ]; then cp report_json.json dast_results.json; fi
 
-      # 6. Push All Scan Reports Directly to DefectDojo
+      # 6. Push All 5 Scan Reports Directly to DefectDojo using Secrets
       - name: Push Reports Directly to DefectDojo
         if: always()
         env:
@@ -84,8 +78,8 @@ jobs:
           upload_scan() {
             FILE=$1
             TYPE=$2
-            echo "----------------------------------------"
             if [ -f "$FILE" ]; then
+              echo "----------------------------------------"
               echo "Uploading $FILE as $TYPE to DefectDojo..."
               RESPONSE=$(curl -s -k -w "\nHTTP_CODE:%{http_code}" -X POST "$DEFECTDOJO_URL/api/v2/import-scan/" \
                 -H "Authorization: Token $API_KEY" \
@@ -98,7 +92,7 @@ jobs:
                 -F "file=@$FILE")
               echo "Response: $RESPONSE"
             else
-              echo "File $FILE not found, skipping."
+              echo "File $FILE not found, skipping upload."
             fi
           }
 
@@ -106,7 +100,7 @@ jobs:
           upload_scan "sast_results.json" "Semgrep JSON Report"
           upload_scan "sca_results.json" "Trivy Scan"
           upload_scan "sbom.json" "CycloneDX Scan"
-          upload_scan "dast_results.json" "ZAP Scan"
+          upload_scan "dast_results.xml" "ZAP Scan"
 
       # 7. Upload Artifacts to GitHub Actions
       - name: Upload Security Reports Artifacts
@@ -119,5 +113,6 @@ jobs:
             sast_results.json
             sca_results.json
             sbom.json
+            dast_results.xml
             dast_results.json
           if-no-files-found: warn
