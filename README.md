@@ -73,8 +73,6 @@ Scan Breakdown in DefectDojo Engagement:
 
 ⚙️ GitHub Actions CI/CD Pipeline Workflow
 
-name: DevSecOps Security Pipeline
-
 on:
   push:
     branches: [ "main", "master" ]
