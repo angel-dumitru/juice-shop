@@ -6,6 +6,11 @@ on:
   pull_request:
     branches: [ "main", "master" ]
 
+# Grant explicit permissions for token operations
+permissions:
+  contents: read
+  issues: write
+
 jobs:
   security-scans:
     name: Execute DevSecOps Scans
@@ -55,18 +60,20 @@ jobs:
       - name: DAST Scan (OWASP ZAP)
         uses: zaproxy/action-baseline@v0.14.0
         with:
+          token: ${{ secrets.GITHUB_TOKEN }}
           target: 'http://localhost:3000'
           artifact_name: 'zap_artifacts'
           cmd_options: '-J report_json.json -r dast_report.html'
+          allow_issue_writing: false
           fail_action: false
 
-      - name: Adjust File Permissions and Resolve ZAP Report
+      - name: Fix Permissions and Format ZAP Output
         if: always()
         run: |
           sudo chmod -R 777 .
           if [ -f "report_json.json" ]; then cp report_json.json dast_results.json; fi
 
-      # 6. Push All 5 Scan Reports Directly to DefectDojo using Secrets
+      # 6. Push All Scan Reports Directly to DefectDojo
       - name: Push Reports Directly to DefectDojo
         if: always()
         env:
@@ -77,8 +84,8 @@ jobs:
           upload_scan() {
             FILE=$1
             TYPE=$2
+            echo "----------------------------------------"
             if [ -f "$FILE" ]; then
-              echo "----------------------------------------"
               echo "Uploading $FILE as $TYPE to DefectDojo..."
               RESPONSE=$(curl -s -k -w "\nHTTP_CODE:%{http_code}" -X POST "$DEFECTDOJO_URL/api/v2/import-scan/" \
                 -H "Authorization: Token $API_KEY" \
@@ -91,7 +98,7 @@ jobs:
                 -F "file=@$FILE")
               echo "Response: $RESPONSE"
             else
-              echo "File $FILE not found, skipping upload."
+              echo "File $FILE not found, skipping."
             fi
           }
 
