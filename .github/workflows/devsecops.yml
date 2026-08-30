@@ -46,7 +46,18 @@ jobs:
           cyclonedx-npm --output-file sbom.json
         continue-on-error: true
 
-      # 5. Save Artifacts for Submission Screenshots
+      # 5. Dynamic Application Security Testing (DAST)
+      - name: Run Juice Shop Container
+        run: docker run -d -p 3000:3000 bkimminich/juice-shop
+
+      - name: Wait for App to Start
+        run: sleep 20
+
+      - name: DAST Scan (OWASP ZAP)
+        run: |
+          docker run --rm --network="host" -v "$(pwd):/zap/wrk/:rw" zaproxy/zap-stable zap-baseline.py -t http://localhost:3000 -J dast_results.json -r dast_report.html || true
+
+      # 6. Save Artifacts for Submission
       - name: Upload Security Reports
         uses: actions/upload-artifact@v4
         with:
@@ -55,3 +66,4 @@ jobs:
             sast_results.json
             sca_results.json
             sbom.json
+            dast_results.json
