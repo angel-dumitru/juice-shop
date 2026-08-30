@@ -22,7 +22,7 @@ jobs:
         with:
           node-version: '18'
 
-      # 1. Secrets Scanning (Gitleaks CLI via Docker for guaranteed JSON output)
+      # 1. Secrets Scanning (Gitleaks)
       - name: Secrets Scan (Gitleaks)
         run: |
           docker run --rm -v "$(pwd):/path" zricethezav/gitleaks:latest detect --source="/path" --report-format json --report-path /path/gitleaks_results.json || true
@@ -37,11 +37,10 @@ jobs:
         run: |
           docker run --rm -v "$(pwd):/root/src" aquasec/trivy fs /root/src --format json -o /root/src/sca_results.json || true
 
-      # 4. Software Bill of Materials (SBOM)
+      # 4. Software Bill of Materials (SBOM) - Uses npx to bypass global npm install issues
       - name: Generate SBOM (CycloneDX)
         run: |
-          npm install -g @cyclonedx/cyclonedx-npm
-          cyclonedx-npm --output-file sbom.json || true
+          npx @cyclonedx/cyclonedx-npm --output-file sbom.json || true
 
       # 5. Dynamic Application Security Testing (DAST)
       - name: Run Juice Shop Container
@@ -50,15 +49,16 @@ jobs:
       - name: Wait for App to Start
         run: sleep 20
 
+      # Explicit path formatting for ZAP baseline scan output
       - name: DAST Scan (OWASP ZAP)
         run: |
-          docker run --rm --network="host" -v "$(pwd):/zap/wrk/:rw" zaproxy/zap-stable zap-baseline.py -t http://localhost:3000 -J dast_results.json -r dast_report.html || true
+          docker run --rm --network="host" -v "$(pwd):/zap/wrk/:rw" zaproxy/zap-stable zap-baseline.py -t http://localhost:3000 -J /zap/wrk/dast_results.json -r /zap/wrk/dast_report.html || true
 
-      # Verify generated files in runner logs
-      - name: Verify Generated Reports
-        run: ls -la *.json
+      # Ensure permissions allow artifact upload action to read all generated files
+      - name: Adjust Report File Permissions
+        run: sudo chmod -R 777 .
 
-      # 6. Save Artifacts for Submission
+      # 6. Save All 5 Artifacts for Submission
       - name: Upload Security Reports
         uses: actions/upload-artifact@v4
         with:
