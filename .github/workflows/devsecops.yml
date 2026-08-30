@@ -22,7 +22,6 @@ jobs:
         with:
           node-version: '18'
 
-      # Install dependencies so CycloneDX has package-lock.json & node_modules
       - name: Install Dependencies
         run: npm install --legacy-peer-deps || true
 
@@ -53,7 +52,6 @@ jobs:
       - name: Wait for App to Start
         run: sleep 20
 
-      # Official ZAP Action handles permissions and exports cleanly
       - name: DAST Scan (OWASP ZAP)
         uses: zaproxy/action-baseline@v0.14.0
         with:
@@ -62,18 +60,40 @@ jobs:
           cmd_options: '-J dast_results.json -r dast_report.html'
           fail_action: false
 
-      # Standardize permissions for artifact collection
-      - name: Adjust Report File Permissions
+      - name: Adjust File Permissions
         if: always()
         run: sudo chmod -R 777 .
 
-      # Verify all 5 JSON files exist
-      - name: Verify Generated Reports
+      # 6. Push All 5 Scan Reports Directly to DefectDojo
+      - name: Push Reports Directly to DefectDojo
         if: always()
-        run: ls -la *.json
+        env:
+          DEFECTDOJO_URL: 'https://f43e7fe037023ece-82-76-159-254.serveousercontent.com'
+          API_KEY: '8d5fd42824a878d6221f568f266498dce10ac2dc'
+          ENGAGEMENT_ID: '1'
+        run: |
+          upload_scan() {
+            FILE=$1
+            TYPE=$2
+            echo "Uploading $FILE as $TYPE to DefectDojo..."
+            curl -s -k -X POST "$DEFECTDOJO_URL/api/v2/import-scan/" \
+              -H "Authorization: Token $API_KEY" \
+              -F "scan_type=$TYPE" \
+              -F "engagement=$ENGAGEMENT_ID" \
+              -F "active=true" \
+              -F "verified=true" \
+              -F "file=@$FILE"
+            echo ""
+          }
 
-      # 6. Save All 5 Artifacts for Submission
-      - name: Upload Security Reports
+          upload_scan "gitleaks_results.json" "Gitleaks Scan"
+          upload_scan "sast_results.json" "Semgrep JSON Report"
+          upload_scan "sca_results.json" "Trivy Scan"
+          upload_scan "sbom.json" "CycloneDX Scan"
+          upload_scan "dast_results.json" "ZAP Scan"
+
+      # 7. Upload Artifacts to GitHub Actions (For backup submission)
+      - name: Upload Security Reports Artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
