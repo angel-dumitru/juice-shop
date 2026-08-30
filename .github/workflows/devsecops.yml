@@ -20,12 +20,14 @@ jobs:
         with:
           node-version: '18'
 
-      # 1. Secrets Scanning
+      # 1. Secrets Scanning (Fixed to export JSON output file)
       - name: Secrets Scan (Gitleaks)
         uses: gitleaks/gitleaks-action@v2
         continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: false
+          GITLEAKS_OUTPUT: gitleaks_results.json
 
       # 2. Static Application Security Testing (SAST)
       - name: SAST Scan (Semgrep)
@@ -57,7 +59,7 @@ jobs:
         run: |
           docker run --rm --network="host" -v "$(pwd):/zap/wrk/:rw" zaproxy/zap-stable zap-baseline.py -t http://localhost:3000 -J dast_results.json -r dast_report.html || true
 
-      # 6. Save Artifacts for Submission
+      # 6. Save All 5 Artifacts for DefectDojo & Submission
       - name: Upload Security Reports
         uses: actions/upload-artifact@v4
         with:
@@ -67,3 +69,4 @@ jobs:
             sca_results.json
             sbom.json
             dast_results.json
+            gitleaks_results.json
